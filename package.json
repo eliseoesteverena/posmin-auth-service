@@ -1,0 +1,19 @@
+{
+  "name": "posmin-auth-service",
+  "version": "1.0.0",
+  "description": "Modular authentication service for Cloudflare Workers",
+  "main": "src/worker.js",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0",
+    "vitest": "^1.0.0"
+  }
+}

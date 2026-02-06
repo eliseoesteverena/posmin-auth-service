@@ -1,0 +1,30 @@
+name = "auth-service"
+main = "src/worker.js"
+compatibility_date = "2026-02-06"
+
+# Environment variables (set these in Cloudflare dashboard or via wrangler secret)
+# JWT_SECRET = "your-secret-key-here"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pos_db"
+database_id = "2dc98682-f807-4ee0-8e99-da1a82535cbb"
+
+# Uncomment for KV-based session storage
+# [[kv_namespaces]]
+# binding = "posmin_kv"
+# id = "63c20db917234b5093c000991432bcbc"
+
+# Uncomment for Durable Objects-based rate limiting
+# [[durable_objects.bindings]]
+# name = "RATE_LIMITER"
+# class_name = "RateLimiter"
+
+[build]
+command = ""
+
+[env.production]
+name = "auth-service-production"
+
+[env.staging]
+name = "auth-service-staging"
