@@ -1,4 +1,3 @@
-name = "auth-service-staging"
 {
   "name": "auth-service",
   "main": "src/worker.js",
