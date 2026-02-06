@@ -1,0 +1,24 @@
+name = "auth-service-staging"
+{
+  "name": "auth-service",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-02-06",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "pos_db",
+      "database_id": "2dc98682-f807-4ee0-8e99-da1a82535cbb"
+    }
+  ],
+  "build": {
+    "command": ""
+  },
+  "env": {
+    "production": {
+      "name": "auth-service-production"
+    },
+    "staging": {
+      "name": "auth-service-staging"
+    }
+  }
+}
