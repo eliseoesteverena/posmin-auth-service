@@ -11,10 +11,20 @@ export class AuthRoutes {
   }
 
   async handleRegister(request) {
-    const { email, password, role, tenant_id } = await request.json();
+    let body;
+    
+    try {
+      body = await request.json();
+    } catch (error) {
+      return this._errorResponse('Invalid JSON in request body', 400);
+    }
+
+    const { email, password, role, tenant_id } = body;
 
     if (!email || !password || !tenant_id) {
-      return this._errorResponse('Email, password and tenant_id required', 400);
+      return this._errorResponse('Email, password and tenant_id required', 400, {
+        received: { email: !!email, password: !!password, tenant_id: !!tenant_id }
+      });
     }
 
     // Validar rol si se proporciona
@@ -25,7 +35,7 @@ export class AuthRoutes {
 
     try {
       const result = await this.authService.register(
-        { email, password, role, tenantId: tenant_id },
+        { email, password, role: role || 'cashier', tenantId: tenant_id },
         this._getContext(request)
       );
 

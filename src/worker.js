@@ -44,19 +44,19 @@ export default {
           status: 'ok',
           timestamp: new Date().toISOString()
         });
-      } else if (path === '/auth/register' && method === 'POST') {
+      } else if ((path === '/register' || path === '/auth/register') && method === 'POST') {
         const result = await authRoutes.handleRegister(request);
         response = this._jsonResponse(result.data, result.status);
-      } else if (path === '/login' && method === 'POST') {
+      } else if ((path === '/login' || path === '/auth/login') && method === 'POST') {
         const result = await authRoutes.handleLogin(request);
         response = this._jsonResponse(result.data, result.status);
-      } else if (path === '/refresh' && method === 'POST') {
+      } else if ((path === '/refresh' || path === '/auth/refresh') && method === 'POST') {
         const result = await authRoutes.handleRefresh(request);
         response = this._jsonResponse(result.data, result.status);
-      } else if (path === '/logout' && method === 'POST') {
+      } else if ((path === '/logout' || path === '/auth/logout') && method === 'POST') {
         const result = await authRoutes.handleLogout(request);
         response = this._jsonResponse(result.data, result.status);
-      } else if (path === '/verify' && method === 'GET') {
+      } else if ((path === '/verify' || path === '/auth/verify') && method === 'GET') {
         const result = await authRoutes.handleVerify(request);
         response = this._jsonResponse(result.data, result.status);
       } else {
