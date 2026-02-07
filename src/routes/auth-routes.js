@@ -10,6 +10,31 @@ export class AuthRoutes {
     this.authService = authService;
   }
 
+  async handleRegister(request) {
+    const { email, password, role, tenant_id } = await request.json();
+
+    if (!email || !password || !tenant_id) {
+      return this._errorResponse('Email, password and tenant_id required', 400);
+    }
+
+    // Validar rol si se proporciona
+    const validRoles = ['owner', 'admin', 'cashier', 'viewer'];
+    if (role && !validRoles.includes(role)) {
+      return this._errorResponse(`Invalid role. Must be one of: ${validRoles.join(', ')}`, 400);
+    }
+
+    try {
+      const result = await this.authService.register(
+        { email, password, role, tenantId: tenant_id },
+        this._getContext(request)
+      );
+
+      return this._successResponse(result, 201);
+    } catch (error) {
+      return this._handleError(error);
+    }
+  }
+
   async handleLogin(request) {
     const { email, password } = await request.json();
 

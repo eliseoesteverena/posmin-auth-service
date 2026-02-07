@@ -44,6 +44,9 @@ export default {
           status: 'ok',
           timestamp: new Date().toISOString()
         });
+      } else if (path === '/register' && method === 'POST') {
+        const result = await authRoutes.handleRegister(request);
+        response = this._jsonResponse(result.data, result.status);
       } else if (path === '/login' && method === 'POST') {
         const result = await authRoutes.handleLogin(request);
         response = this._jsonResponse(result.data, result.status);

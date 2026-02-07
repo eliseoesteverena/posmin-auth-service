@@ -17,6 +17,85 @@ export class AuthService {
   }
 
   /**
+   * Register new user
+   */
+  async register(userData, context) {
+    const { email, password, role = 'cashier', tenantId } = userData;
+    const { ip, userAgent } = context;
+
+    // Validar email único
+    const existingUser = await this.userRepo.findByEmail(email);
+    if (existingUser) {
+      await this._logEvent(null, tenantId, 'register_failed', ip, userAgent, {
+        email,
+        reason: 'email_already_exists'
+      });
+      throw new AuthError('Email already registered', 409);
+    }
+
+    // Validar fortaleza de contraseña
+    this._validatePasswordStrength(password);
+
+    // Validar tenant existe y está activo
+    const tenant = await this.userRepo.getTenantById(tenantId);
+    if (!tenant) {
+      throw new AuthError('Invalid tenant', 400);
+    }
+    if (tenant.status !== 'active') {
+      throw new AuthError('Tenant is not active', 403);
+    }
+
+    // Verificar límite de usuarios del tenant
+    const userCount = await this.userRepo.countActiveUsers(tenantId);
+    if (userCount >= tenant.max_users) {
+      throw new AuthError('Tenant user limit reached', 403, {
+        max_users: tenant.max_users,
+        current_users: userCount
+      });
+    }
+
+    // Hash de contraseña
+    const passwordHash = await this.passwordService.hash(password);
+
+    // Crear usuario
+    const userId = this._generateId();
+    const now = new Date().toISOString();
+
+    const newUser = {
+      id: userId,
+      tenantId,
+      email,
+      passwordHash,
+      role,
+      isActive: true,
+      emailVerified: false,
+      mfaEnabled: false,
+      failedAttempts: 0,
+      createdAt: now,
+      updatedAt: now
+    };
+
+    await this.userRepo.create(newUser);
+
+    // Log registro exitoso
+    await this._logEvent(userId, tenantId, 'user_registered', ip, userAgent, {
+      email,
+      role
+    });
+
+    // Generar email verification token (opcional)
+    // const verificationToken = await this._generateVerificationToken(userId);
+
+    return {
+      id: userId,
+      email,
+      role,
+      tenantId,
+      message: 'User registered successfully'
+    };
+  }
+
+  /**
    * Authenticate user with email and password
    */
   async login(credentials, context) {
@@ -239,6 +318,24 @@ export class AuthService {
     const timestamp = Date.now();
     const random = Math.random().toString(36).slice(2, 11);
     return `${timestamp}-${random}`;
+  }
+
+  _validatePasswordStrength(password) {
+    if (!password || password.length < 8) {
+      throw new AuthError('Password must be at least 8 characters', 400);
+    }
+
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumbers = /\d/.test(password);
+    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+    if (!hasUpperCase || !hasLowerCase || !hasNumbers || !hasSpecialChar) {
+      throw new AuthError(
+        'Password must contain uppercase, lowercase, number and special character',
+        400
+      );
+    }
   }
 }
 

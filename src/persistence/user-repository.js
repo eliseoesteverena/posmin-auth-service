@@ -32,6 +32,50 @@ export class UserRepository {
       .first();
   }
 
+  async create(userData) {
+    const query = `
+      INSERT INTO users (
+        id, tenant_id, email, password_hash, role,
+        is_active, email_verified, mfa_enabled, failed_attempts,
+        created_at, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    return await this.db
+      .prepare(query)
+      .bind(
+        userData.id,
+        userData.tenantId,
+        userData.email,
+        userData.passwordHash,
+        userData.role,
+        userData.isActive ? 1 : 0,
+        userData.emailVerified ? 1 : 0,
+        userData.mfaEnabled ? 1 : 0,
+        userData.failedAttempts || 0,
+        userData.createdAt,
+        userData.updatedAt
+      )
+      .run();
+  }
+
+  async getTenantById(tenantId) {
+    return await this.db
+      .prepare('SELECT * FROM tenants WHERE id = ?')
+      .bind(tenantId)
+      .first();
+  }
+
+  async countActiveUsers(tenantId) {
+    const result = await this.db
+      .prepare('SELECT COUNT(*) as count FROM users WHERE tenant_id = ? AND is_active = 1')
+      .bind(tenantId)
+      .first();
+    
+    return result ? result.count : 0;
+  }
+
   async updateFailedAttempts(userId, attempts, lockedUntil = null) {
     return await this.db
       .prepare('UPDATE users SET failed_attempts = ?, locked_until = ? WHERE id = ?')
