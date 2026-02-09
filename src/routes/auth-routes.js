@@ -19,23 +19,38 @@ export class AuthRoutes {
       return this._errorResponse('Invalid JSON in request body', 400);
     }
 
-    const { email, password, role, tenant_id } = body;
+    const { email, password, role, tenant_id, company_name } = body;
 
-    if (!email || !password || !tenant_id) {
-      return this._errorResponse('Email, password and tenant_id required', 400, {
-        received: { email: !!email, password: !!password, tenant_id: !!tenant_id }
-      });
+    if (!email || !password) {
+      return this._errorResponse('Email and password required', 400);
     }
 
-    // Validar rol si se proporciona
+    // Si no hay tenant_id, es self-registration (crear tenant nuevo)
+    // Si hay tenant_id, es invite-registration (unirse a tenant existente)
+    const isSelfRegistration = !tenant_id;
+
+    if (isSelfRegistration && !company_name) {
+      return this._errorResponse('company_name required for new account registration', 400);
+    }
+
+    // Validar rol
     const validRoles = ['owner', 'admin', 'cashier', 'viewer'];
-    if (role && !validRoles.includes(role)) {
+    const finalRole = isSelfRegistration ? 'owner' : (role || 'cashier');
+    
+    if (!validRoles.includes(finalRole)) {
       return this._errorResponse(`Invalid role. Must be one of: ${validRoles.join(', ')}`, 400);
     }
 
     try {
       const result = await this.authService.register(
-        { email, password, role: role || 'cashier', tenantId: tenant_id },
+        { 
+          email, 
+          password, 
+          role: finalRole,
+          tenantId: tenant_id,
+          companyName: company_name,
+          isSelfRegistration
+        },
         this._getContext(request)
       );
 

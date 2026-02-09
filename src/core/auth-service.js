@@ -20,13 +20,57 @@ export class AuthService {
    * Register new user
    */
   async register(userData, context) {
-    const { email, password, role = 'cashier', tenantId } = userData;
+    const { email, password, role, tenantId, companyName, isSelfRegistration } = userData;
     const { ip, userAgent } = context;
+
+    let finalTenantId = tenantId;
+
+    // SELF-REGISTRATION: Crear nuevo tenant
+    if (isSelfRegistration) {
+      // Generar ID único para el tenant
+      finalTenantId = this._generateId();
+
+      // Crear tenant
+      const tenantData = {
+        id: finalTenantId,
+        name: companyName,
+        legalName: companyName,
+        plan: 'basic',
+        status: 'active',
+        maxUsers: 5,
+        maxProducts: 100,
+        createdAt: new Date().toISOString()
+      };
+
+      await this.userRepo.createTenant(tenantData);
+
+      await this._logEvent(null, finalTenantId, 'tenant_created', ip, userAgent, {
+        tenantName: companyName
+      });
+    } else {
+      // INVITE-REGISTRATION: Validar tenant existente
+      const tenant = await this.userRepo.getTenantById(finalTenantId);
+      if (!tenant) {
+        throw new AuthError('Invalid tenant', 400);
+      }
+      if (tenant.status !== 'active') {
+        throw new AuthError('Tenant is not active', 403);
+      }
+
+      // Verificar límite de usuarios del tenant
+      const userCount = await this.userRepo.countActiveUsers(finalTenantId);
+      if (userCount >= tenant.max_users) {
+        throw new AuthError('Tenant user limit reached', 403, {
+          max_users: tenant.max_users,
+          current_users: userCount
+        });
+      }
+    }
 
     // Validar email único
     const existingUser = await this.userRepo.findByEmail(email);
     if (existingUser) {
-      await this._logEvent(null, tenantId, 'register_failed', ip, userAgent, {
+      await this._logEvent(null, finalTenantId, 'register_failed', ip, userAgent, {
         email,
         reason: 'email_already_exists'
       });
@@ -35,24 +79,6 @@ export class AuthService {
 
     // Validar fortaleza de contraseña
     this._validatePasswordStrength(password);
-
-    // Validar tenant existe y está activo
-    const tenant = await this.userRepo.getTenantById(tenantId);
-    if (!tenant) {
-      throw new AuthError('Invalid tenant', 400);
-    }
-    if (tenant.status !== 'active') {
-      throw new AuthError('Tenant is not active', 403);
-    }
-
-    // Verificar límite de usuarios del tenant
-    const userCount = await this.userRepo.countActiveUsers(tenantId);
-    if (userCount >= tenant.max_users) {
-      throw new AuthError('Tenant user limit reached', 403, {
-        max_users: tenant.max_users,
-        current_users: userCount
-      });
-    }
 
     // Hash de contraseña
     const passwordHash = await this.passwordService.hash(password);
@@ -63,7 +89,7 @@ export class AuthService {
 
     const newUser = {
       id: userId,
-      tenantId,
+      tenantId: finalTenantId,
       email,
       passwordHash,
       role,
@@ -78,19 +104,18 @@ export class AuthService {
     await this.userRepo.create(newUser);
 
     // Log registro exitoso
-    await this._logEvent(userId, tenantId, 'user_registered', ip, userAgent, {
+    await this._logEvent(userId, finalTenantId, 'user_registered', ip, userAgent, {
       email,
-      role
+      role,
+      registrationType: isSelfRegistration ? 'self' : 'invite'
     });
-
-    // Generar email verification token (opcional)
-    // const verificationToken = await this._generateVerificationToken(userId);
 
     return {
       id: userId,
       email,
       role,
-      tenantId,
+      tenant_id: finalTenantId,
+      tenant_name: isSelfRegistration ? companyName : undefined,
       message: 'User registered successfully'
     };
   }

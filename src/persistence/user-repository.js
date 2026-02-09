@@ -67,6 +67,30 @@ export class UserRepository {
       .first();
   }
 
+  async createTenant(tenantData) {
+    const query = `
+      INSERT INTO tenants (
+        id, name, legal_name, plan, status, 
+        max_users, max_products, created_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    return await this.db
+      .prepare(query)
+      .bind(
+        tenantData.id,
+        tenantData.name,
+        tenantData.legalName || tenantData.name,
+        tenantData.plan || 'basic',
+        tenantData.status || 'active',
+        tenantData.maxUsers || 5,
+        tenantData.maxProducts || 100,
+        tenantData.createdAt
+      )
+      .run();
+  }
+
   async countActiveUsers(tenantId) {
     const result = await this.db
       .prepare('SELECT COUNT(*) as count FROM users WHERE tenant_id = ? AND is_active = 1')
