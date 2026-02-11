@@ -182,7 +182,7 @@ export class AuthService {
     await this.sessionRepo.create({
       id: this._generateId(),
       userId: user.id,
-      tenantId: session.tenant_id,
+      tenantId: user.tenant_id,
       refreshTokenHash: refreshTokenData.hash,
       jti,
       expiresAt: refreshTokenData.expiresAt,
