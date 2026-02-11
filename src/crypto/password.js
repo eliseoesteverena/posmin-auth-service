@@ -18,6 +18,9 @@
 // PBKDF2-SHA256 con 600_000 iteraciones (recomendación OWASP 2024)
 // Formato de hash: pbkdf2$iterations$salt(hex)$hash(hex)
 
+console.log('PASSWORD_MODULE_VERSION: PBKDF2_NEW');
+
+
 const PBKDF2_ITERATIONS = 600_000;
 const PBKDF2_HASH       = 'SHA-256';
 const SALT_BYTES        = 16;
