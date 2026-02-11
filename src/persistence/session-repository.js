@@ -10,8 +10,11 @@ export class SessionRepository {
 
   async create(sessionData) {
     const query = `
-      INSERT INTO sessions (id, user_id, refresh_token_hash, jti, expires_at, created_at)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO sessions (
+        id, user_id, tenant_id, refresh_token_hash, jti,
+        ip_address, user_agent, device_fingerprint, expires_at, created_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     return await this.db
@@ -19,8 +22,12 @@ export class SessionRepository {
       .bind(
         sessionData.id,
         sessionData.userId,
+        sessionData.tenantId,
         sessionData.refreshTokenHash,
         sessionData.jti,
+        sessionData.ipAddress        ?? null,
+        sessionData.userAgent        ?? null,
+        sessionData.deviceFingerprint ?? null,
         sessionData.expiresAt,
         sessionData.createdAt
       )
