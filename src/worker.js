@@ -1,5 +1,5 @@
 /**
- * Cloudflare Worker - Auth Service
+ * Cloudflare Worker - Auth Service + Products
  * Main entry point with dependency injection
  */
 
@@ -13,14 +13,19 @@ import { AuthService } from './core/auth-service.js';
 import { AuthRoutes } from './routes/auth-routes.js';
 import { CorsMiddleware } from './middleware/cors.js';
 import { RateLimitMiddleware } from './middleware/rate-limit.js';
-import { ProductRoutes } from './routes/product-routes.js';
 
+// Imports de productos
+import { ProductRoutes } from './routes/product-routes.js';
+import { ProductService } from './core/product-service.js';
+import { ProductRepository } from './persistence/product-repository.js';
 
 export default {
   async fetch(request, env, ctx) {
     // Initialize dependencies
     const dependencies = this._initializeDependencies(env);
-    const { authRoutes, cors, rateLimit } = dependencies;
+    
+    // Extraer productRoutes
+    const { authRoutes, productRoutes, cors, rateLimit, jwtService } = dependencies;
 
     const url = new URL(request.url);
     const path = url.pathname;
@@ -32,14 +37,30 @@ export default {
     }
 
     try {
-      // Rate limiting (optional, can be enabled per route)
-      // const rateLimitCheck = await rateLimit.checkLimit(request);
-      // if (!rateLimitCheck.allowed) {
-      //   return rateLimit.createRateLimitResponse(rateLimitCheck.resetAt);
-      // }
-
-      // Route handling
       let response;
+      let context = null;
+
+      // Extraer context para rutas protegidas
+      if (path.startsWith('/api/')) {
+        const token = this._extractToken(request);
+        if (!token) {
+          response = this._jsonResponse({ error: 'No authorization token' }, 401);
+          return cors.addHeaders(response, request);
+        }
+
+        const verification = await jwtService.verify(token);
+        if (!verification.valid) {
+          response = this._jsonResponse({ error: 'Invalid or expired token' }, 401);
+          return cors.addHeaders(response, request);
+        }
+
+        context = {
+          userId: verification.payload.sub,
+          tenantId: verification.payload.tenant,
+          role: verification.payload.role,
+          email: verification.payload.email
+        };
+      }
 
       // ========== HEALTH CHECK ==========
       if (path === '/health' && method === 'GET') {
@@ -71,42 +92,55 @@ export default {
         response = this._jsonResponse(result.data, result.status);
       }
       
-      // ========== PRODUCT ROUTES ==========
-      // TODO: Descomentar cuando ProductRoutes esté implementado
+      // ========== PRODUCT ROUTES (rutas más específicas primero) ==========
       
-      else if (path === '/api/products' && method === 'GET') {
-        const result = await productRoutes.handleListProducts(request, context);
-        response = this._jsonResponse(result.data, result.status);
-      }
-      else if (path === '/api/products' && method === 'POST') {
-        const result = await productRoutes.handleCreateProduct(request, context);
-        response = this._jsonResponse(result.data, result.status);
-      }
+      // GET /api/products/barcode/:barcode - Buscar por código de barras
       else if (path.match(/^\/api\/products\/barcode\/(.+)$/) && method === 'GET') {
         const barcode = path.match(/^\/api\/products\/barcode\/(.+)$/)[1];
         const result = await productRoutes.handleGetProductByBarcode(request, barcode, context);
         response = this._jsonResponse(result.data, result.status);
       }
+      
+      // GET /api/products/:id - Obtener producto por ID
       else if (path.match(/^\/api\/products\/([^\/]+)$/) && method === 'GET') {
         const productId = path.match(/^\/api\/products\/([^\/]+)$/)[1];
         const result = await productRoutes.handleGetProduct(request, productId, context);
         response = this._jsonResponse(result.data, result.status);
       }
+      
+      // PUT /api/products/:id - Actualizar producto
       else if (path.match(/^\/api\/products\/([^\/]+)$/) && method === 'PUT') {
         const productId = path.match(/^\/api\/products\/([^\/]+)$/)[1];
         const result = await productRoutes.handleUpdateProduct(request, productId, context);
         response = this._jsonResponse(result.data, result.status);
       }
+      
+      // DELETE /api/products/:id - Eliminar producto
       else if (path.match(/^\/api\/products\/([^\/]+)$/) && method === 'DELETE') {
         const productId = path.match(/^\/api\/products\/([^\/]+)$/)[1];
         const result = await productRoutes.handleDeleteProduct(request, productId, context);
         response = this._jsonResponse(result.data, result.status);
       }
       
+      // GET /api/products - Listar productos
+      else if (path === '/api/products' && method === 'GET') {
+        const result = await productRoutes.handleListProducts(request, context);
+        response = this._jsonResponse(result.data, result.status);
+      }
+      
+      // POST /api/products - Crear producto
+      else if (path === '/api/products' && method === 'POST') {
+        const result = await productRoutes.handleCreateProduct(request, context);
+        response = this._jsonResponse(result.data, result.status);
+      }
       
       // ========== 404 - NOT FOUND ==========
       else {
-        response = this._jsonResponse({ error: 'Route not found' }, 404);
+        response = this._jsonResponse({ 
+          error: 'Route not found',
+          path: path,
+          method: method
+        }, 404);
       }
 
       // Add CORS headers
@@ -114,8 +148,12 @@ export default {
 
     } catch (error) {
       console.error('Worker error:', error);
+      console.error('Stack:', error.stack);
       const errorResponse = this._jsonResponse(
-        { error: 'Internal server error' },
+        { 
+          error: 'Internal server error',
+          message: error.message 
+        },
         500
       );
       return cors.addHeaders(errorResponse, request);
@@ -123,12 +161,15 @@ export default {
   },
 
   _initializeDependencies(env) {
-    // Repositories
+    // ========== REPOSITORIES ==========
     const userRepo = new UserRepository(env.DB);
     const sessionRepo = new SessionRepository(env.DB);
     const authLogRepo = new AuthLogRepository(env.DB);
+    
+    // Product repository
+    const productRepo = new ProductRepository(env.DB);
 
-    // Crypto services
+    // ========== CRYPTO SERVICES ==========
     const passwordService = new PasswordService({
       saltRounds: 12
     });
@@ -143,7 +184,7 @@ export default {
       expiryDays: 30
     });
 
-    // Core service
+    // ========== CORE SERVICES ==========
     const authService = new AuthService({
       userRepo,
       sessionRepo,
@@ -157,10 +198,19 @@ export default {
       }
     });
 
-    // Routes
-    const authRoutes = new AuthRoutes(authService);
+    // Product service
+    const productService = new ProductService({
+      productRepo,
+      auditLogRepo: authLogRepo  // Reutilizar el mismo para logs
+    });
 
-    // Middleware
+    // ========== ROUTES ==========
+    const authRoutes = new AuthRoutes(authService);
+    
+    // Product routes
+    const productRoutes = new ProductRoutes(productService);
+
+    // ========== MIDDLEWARE ==========
     const cors = new CorsMiddleware({
       allowedOrigins: ['*'],
       allowedMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -172,15 +222,27 @@ export default {
       maxRequests: 100
     });
 
+    // Retornar productRoutes
     return {
       authRoutes,
+      productRoutes, 
       cors,
       rateLimit,
+      jwtService,    
       authService,
       userRepo,
       sessionRepo,
-      authLogRepo
+      authLogRepo,
+      productRepo,
+      productService
     };
+  },
+
+  // Helper para extraer token
+  _extractToken(request) {
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader) return null;
+    return authHeader.replace('Bearer ', '');
   },
 
   _jsonResponse(data, status = 200) {
