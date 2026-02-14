@@ -13,6 +13,8 @@ import { AuthService } from './core/auth-service.js';
 import { AuthRoutes } from './routes/auth-routes.js';
 import { CorsMiddleware } from './middleware/cors.js';
 import { RateLimitMiddleware } from './middleware/rate-limit.js';
+import { ProductRoutes } from './routes/product-routes.js';
+
 
 export default {
   async fetch(request, env, ctx) {
