@@ -39,34 +39,40 @@ export default {
       // Route handling
       let response;
 
+      // ========== HEALTH CHECK ==========
       if (path === '/health' && method === 'GET') {
         response = this._jsonResponse({
           status: 'ok',
           timestamp: new Date().toISOString()
         });
-      } 
-
-      // Auth
+      }
       
+      // ========== AUTH ROUTES ==========
       else if ((path === '/register' || path === '/auth/register') && method === 'POST') {
         const result = await authRoutes.handleRegister(request);
         response = this._jsonResponse(result.data, result.status);
-      } else if ((path === '/login' || path === '/auth/login') && method === 'POST') {
+      } 
+      else if ((path === '/login' || path === '/auth/login') && method === 'POST') {
         const result = await authRoutes.handleLogin(request);
         response = this._jsonResponse(result.data, result.status);
-      } else if ((path === '/refresh' || path === '/auth/refresh') && method === 'POST') {
+      } 
+      else if ((path === '/refresh' || path === '/auth/refresh') && method === 'POST') {
         const result = await authRoutes.handleRefresh(request);
         response = this._jsonResponse(result.data, result.status);
-      } else if ((path === '/logout' || path === '/auth/logout') && method === 'POST') {
+      } 
+      else if ((path === '/logout' || path === '/auth/logout') && method === 'POST') {
         const result = await authRoutes.handleLogout(request);
         response = this._jsonResponse(result.data, result.status);
-      } else if ((path === '/verify' || path === '/auth/verify') && method === 'GET') {
+      } 
+      else if ((path === '/verify' || path === '/auth/verify') && method === 'GET') {
         const result = await authRoutes.handleVerify(request);
         response = this._jsonResponse(result.data, result.status);
-      } 
-      // Negocio
-      // Rutas de productos
-      if (path === '/api/products' && method === 'GET') {
+      }
+      
+      // ========== PRODUCT ROUTES ==========
+      // TODO: Descomentar cuando ProductRoutes esté implementado
+      
+      else if (path === '/api/products' && method === 'GET') {
         const result = await productRoutes.handleListProducts(request, context);
         response = this._jsonResponse(result.data, result.status);
       }
@@ -74,7 +80,29 @@ export default {
         const result = await productRoutes.handleCreateProduct(request, context);
         response = this._jsonResponse(result.data, result.status);
       }
+      else if (path.match(/^\/api\/products\/barcode\/(.+)$/) && method === 'GET') {
+        const barcode = path.match(/^\/api\/products\/barcode\/(.+)$/)[1];
+        const result = await productRoutes.handleGetProductByBarcode(request, barcode, context);
+        response = this._jsonResponse(result.data, result.status);
+      }
+      else if (path.match(/^\/api\/products\/([^\/]+)$/) && method === 'GET') {
+        const productId = path.match(/^\/api\/products\/([^\/]+)$/)[1];
+        const result = await productRoutes.handleGetProduct(request, productId, context);
+        response = this._jsonResponse(result.data, result.status);
+      }
+      else if (path.match(/^\/api\/products\/([^\/]+)$/) && method === 'PUT') {
+        const productId = path.match(/^\/api\/products\/([^\/]+)$/)[1];
+        const result = await productRoutes.handleUpdateProduct(request, productId, context);
+        response = this._jsonResponse(result.data, result.status);
+      }
+      else if (path.match(/^\/api\/products\/([^\/]+)$/) && method === 'DELETE') {
+        const productId = path.match(/^\/api\/products\/([^\/]+)$/)[1];
+        const result = await productRoutes.handleDeleteProduct(request, productId, context);
+        response = this._jsonResponse(result.data, result.status);
+      }
       
+      
+      // ========== 404 - NOT FOUND ==========
       else {
         response = this._jsonResponse({ error: 'Route not found' }, 404);
       }
