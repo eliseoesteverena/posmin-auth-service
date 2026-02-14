@@ -74,30 +74,6 @@ export default {
         const result = await productRoutes.handleCreateProduct(request, context);
         response = this._jsonResponse(result.data, result.status);
       }
-      // Búsqueda por código de barras (debe ir ANTES de /:id)
-      else if (path.match(/^\/api\/products\/barcode\/(.+)$/) && method === 'GET') {
-        const barcode = path.match(/^\/api\/products\/barcode\/(.+)$/)[1];
-        const result = await productRoutes.handleGetProductByBarcode(
-          request, 
-          barcode, 
-          context
-        );
-        response = this._jsonResponse(result.data, result.status);
-      }
-      else if (path.match(/^\/api\/products\/([^\/]+)$/) && method === 'GET') {
-        const productId = path.match(/^\/api\/products\/([^\/]+)$/)[1];
-        const result = await productRoutes.handleGetProduct(request, productId, context);
-        response = this._jsonResponse(result.data, result.status);
-      }
-      else if (path.match(/^\/api\/products\/([^\/]+)$/) && method === 'PUT') {
-        const productId = path.match(/^\/api\/products\/([^\/]+)$/)[1];
-        const result = await productRoutes.handleUpdateProduct(
-          request, 
-          productId, 
-          context
-        );
-        response = this._jsonResponse(result.data, result.status);
-      }
       
       else {
         response = this._jsonResponse({ error: 'Route not found' }, 404);
