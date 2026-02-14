@@ -44,7 +44,11 @@ export default {
           status: 'ok',
           timestamp: new Date().toISOString()
         });
-      } else if ((path === '/register' || path === '/auth/register') && method === 'POST') {
+      } 
+
+      // Auth
+      
+      else if ((path === '/register' || path === '/auth/register') && method === 'POST') {
         const result = await authRoutes.handleRegister(request);
         response = this._jsonResponse(result.data, result.status);
       } else if ((path === '/login' || path === '/auth/login') && method === 'POST') {
@@ -59,7 +63,43 @@ export default {
       } else if ((path === '/verify' || path === '/auth/verify') && method === 'GET') {
         const result = await authRoutes.handleVerify(request);
         response = this._jsonResponse(result.data, result.status);
-      } else {
+      } 
+      // Negocio
+      // Rutas de productos
+      if (path === '/api/products' && method === 'GET') {
+        const result = await productRoutes.handleListProducts(request, context);
+        response = this._jsonResponse(result.data, result.status);
+      }
+      else if (path === '/api/products' && method === 'POST') {
+        const result = await productRoutes.handleCreateProduct(request, context);
+        response = this._jsonResponse(result.data, result.status);
+      }
+      // Búsqueda por código de barras (debe ir ANTES de /:id)
+      else if (path.match(/^\/api\/products\/barcode\/(.+)$/) && method === 'GET') {
+        const barcode = path.match(/^\/api\/products\/barcode\/(.+)$/)[1];
+        const result = await productRoutes.handleGetProductByBarcode(
+          request, 
+          barcode, 
+          context
+        );
+        response = this._jsonResponse(result.data, result.status);
+      }
+      else if (path.match(/^\/api\/products\/([^\/]+)$/) && method === 'GET') {
+        const productId = path.match(/^\/api\/products\/([^\/]+)$/)[1];
+        const result = await productRoutes.handleGetProduct(request, productId, context);
+        response = this._jsonResponse(result.data, result.status);
+      }
+      else if (path.match(/^\/api\/products\/([^\/]+)$/) && method === 'PUT') {
+        const productId = path.match(/^\/api\/products\/([^\/]+)$/)[1];
+        const result = await productRoutes.handleUpdateProduct(
+          request, 
+          productId, 
+          context
+        );
+        response = this._jsonResponse(result.data, result.status);
+      }
+      
+      else {
         response = this._jsonResponse({ error: 'Route not found' }, 404);
       }
 
